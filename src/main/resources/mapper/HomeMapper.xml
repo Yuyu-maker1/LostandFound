@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jincheng.lostandfound.dao.HomeMapper">
+
+  <!-- 表不存在时首页返回空数组，不报错 -->
+  <select id="countTable" resultType="int">
+    select count(*)
+      from information_schema.tables
+     where table_schema = database()
+       and table_name = #{tableName,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectAnnouncements" resultType="java.util.LinkedHashMap">
+    select id           as noticeId,
+           title        as title,
+           content      as content,
+           create_time  as createTime
+      from announcement
+     order by create_time desc
+     limit #{limit,jdbcType=INTEGER}
+  </select>
+
+  <select id="countFoundItems" resultType="int">
+    select count(*)
+      from found_item
+     where audit_status = 1
+       and status in (0, 1)
+  </select>
+
+  <select id="selectFoundItems" resultType="java.util.LinkedHashMap">
+    select found_id      as foundId,
+           title         as title,
+           found_time    as foundTime,
+           found_location as station,
+           status        as status,
+           item_image    as itemImage
+      from found_item
+     where audit_status = 1
+       and status in (0, 1)
+     order by create_time desc
+     limit #{offset,jdbcType=INTEGER}, #{pageSize,jdbcType=INTEGER}
+  </select>
+
+</mapper>

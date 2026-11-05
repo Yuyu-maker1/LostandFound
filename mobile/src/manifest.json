@@ -1,0 +1,34 @@
+{
+  "name": "高铁失物招领",
+  "appid": "__UNI__LOSTFOUND",
+  "description": "高铁失物招领旅客端",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "waiting": true,
+      "autoclose": true,
+      "delay": 0
+    }
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "title": "高铁失物招领",
+    "router": {
+      "mode": "hash"
+    }
+  },
+  "vueVersion": "3"
+}
