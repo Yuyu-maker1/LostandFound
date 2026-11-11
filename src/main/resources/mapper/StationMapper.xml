@@ -26,6 +26,13 @@
     limit 20
   </select>
 
+  <select id="selectAllEnabled" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" />
+    from station
+    where is_enabled = 1
+    order by station_name
+  </select>
+
   <select id="selectById" resultMap="BaseResultMap">
     select <include refid="Base_Column_List" />
     from station where id = #{id,jdbcType=INTEGER}

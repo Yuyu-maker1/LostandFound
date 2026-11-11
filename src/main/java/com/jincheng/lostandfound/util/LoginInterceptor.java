@@ -27,6 +27,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         String uri = request.getRequestURI();
 
         // ===== 旅客端 /app/**：校验内存 token，不依赖 Cookie =====
+        //由于用户端为H5，为了能够跨端统一，所以不采用cookie，不依赖浏览器。而是再内存中自带token，只需要在请求头中带有token即可访问。
         if (uri.startsWith("/app/")) {
             if (appTokenStore.resolve(token) != null) {
                 return true;
@@ -35,6 +36,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         }
 
         // ===== 管理端 /admin/**：沿用 HttpSession，并校验管理员角色 =====
+        //管理端为PC浏览器，自带cookie，并且session自带role，角色鉴权更方便。
         HttpSession session = request.getSession();
         String sessionToken = (String) session.getAttribute("token");
         Object role = session.getAttribute("role");

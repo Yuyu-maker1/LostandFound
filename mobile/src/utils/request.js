@@ -7,6 +7,8 @@ const BASE_URL = ''
 const BASE_URL = 'http://localhost:8083'
 // #endif
 
+export { BASE_URL }
+
 export function getToken() {
   return uni.getStorageSync('token') || ''
 }
@@ -62,4 +64,42 @@ export function get(url, data) {
 
 export function post(url, data) {
   return request({ url, method: 'POST', data })
+}
+
+// 文件上传：uni.uploadFile 走 multipart/form-data，不手动设置 Content-Type
+export function uploadFile(url, filePath, name = 'file') {
+  const token = getToken()
+  return new Promise((resolve, reject) => {
+    uni.uploadFile({
+      url: BASE_URL + url,
+      filePath,
+      name,
+      header: token ? { Authorization: token } : {},
+      success(res) {
+        if (res.statusCode === 401) {
+          clearLogin()
+          uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
+          setTimeout(() => {
+            uni.reLaunch({ url: '/pages/login/login' })
+          }, 800)
+          reject(new Error('未登录或登录已过期'))
+          return
+        }
+        let body = {}
+        try {
+          body = JSON.parse(res.data)
+        } catch (e) {
+          body = {}
+        }
+        if (res.statusCode >= 200 && res.statusCode < 300 && body.code === 0) {
+          resolve(body)
+          return
+        }
+        reject(new Error(body.msg || '上传失败'))
+      },
+      fail(err) {
+        reject(new Error(err.errMsg || '上传失败'))
+      }
+    })
+  })
 }

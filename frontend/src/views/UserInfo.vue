@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import router from "@/router";
+import { roleTextOf } from "@/utils/role";
 
 // 当前登录账号（管理员账号由车站统一分配，不开放自助注册）
 const username = ref(localStorage.getItem("username") || "管理员");
@@ -17,13 +18,8 @@ const pwdForm = reactive({
 const pwdFormRef = ref(null);
 const submitting = ref(false);
 
-// 显式映射，避免把未知/空角色兜底成“车站管理员”
-const roleText = computed(() => {
-  const role = localStorage.getItem("role");
-  if (role === "super_admin") return "超级管理员";
-  if (role === "admin") return "车站管理员";
-  return "未知角色";
-});
+// 四种角色统一映射，不再用“未知角色”兜底
+const roleText = computed(() => roleTextOf(localStorage.getItem("role")));
 
 // 确认新密码与登录密码一致
 const validateConfirm = (rule, value, callback) => {

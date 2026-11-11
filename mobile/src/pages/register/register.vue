@@ -1,8 +1,25 @@
-<template>
+﻿<template>
   <view class="register-page">
     <view class="intro">
-      <text class="intro-title">创建旅客账号</text>
-      <text class="intro-sub">注册后可查看招领信息、发布寻物启事</text>
+      <text class="intro-title">创建账号</text>
+      <text class="intro-sub">旅客注册即可使用；乘务员需管理员审核通过后登录</text>
+    </view>
+
+    <view class="role-tabs">
+      <view
+        class="role-tab"
+        :class="{ active: form.role === 'user' }"
+        @click="switchRole('user')"
+      >
+        旅客
+      </view>
+      <view
+        class="role-tab"
+        :class="{ active: form.role === 'attendant' }"
+        @click="switchRole('attendant')"
+      >
+        乘务员
+      </view>
     </view>
 
     <view class="form-card">
@@ -55,7 +72,55 @@
         <text v-if="errors.phone" class="error-text">{{ errors.phone }}</text>
       </view>
 
-      <view class="field">
+      <view v-if="isAttendant" class="field">
+        <text class="field-label">真实姓名<text class="required">*</text></text>
+        <input
+          v-model="form.realName"
+          class="field-input"
+          :class="{ 'input-error': errors.realName }"
+          type="text"
+          placeholder="2-20 个字"
+          placeholder-class="placeholder"
+          maxlength="20"
+          @input="errors.realName = ''"
+        />
+        <text v-if="errors.realName" class="error-text">{{ errors.realName }}</text>
+      </view>
+
+      <view v-if="isAttendant" class="field">
+        <text class="field-label">员工工号<text class="required">*</text></text>
+        <input
+          v-model="form.staffNo"
+          class="field-input"
+          :class="{ 'input-error': errors.staffNo }"
+          type="text"
+          placeholder="4-20 位字母或数字"
+          placeholder-class="placeholder"
+          maxlength="20"
+          @input="errors.staffNo = ''"
+        />
+        <text v-if="errors.staffNo" class="error-text">{{ errors.staffNo }}</text>
+      </view>
+
+      <view v-if="isAttendant" class="field">
+        <text class="field-label">所属车站<text class="required">*</text></text>
+        <picker
+          mode="selector"
+          :range="stationNames"
+          :value="stationIndex < 0 ? 0 : stationIndex"
+          @change="onStationChange"
+        >
+          <view class="field-input picker-value" :class="{ 'input-error': errors.station }">
+            <text :class="stationName ? 'picker-text' : 'placeholder'">
+              {{ stationName || (stationNames.length ? '请选择所属车站' : '车站加载中...') }}
+            </text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+        <text v-if="errors.station" class="error-text">{{ errors.station }}</text>
+      </view>
+
+      <view v-else class="field">
         <text class="field-label">真实姓名<text class="optional">（选填）</text></text>
         <input
           v-model="form.realName"
@@ -71,7 +136,7 @@
       </view>
 
       <button class="submit-btn" :loading="loading" :disabled="loading" @click="onSubmit">
-        {{ loading ? '注册中...' : '注 册' }}
+        {{ loading ? '提交中...' : isAttendant ? '提交审核' : '注 册' }}
       </button>
 
       <view class="tips">
@@ -82,31 +147,76 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { post } from '../../utils/request'
+import { computed, reactive, ref } from 'vue'
+import { get, post } from '../../utils/request'
 
 const form = reactive({
+  role: 'user',
   name: '',
   pwd: '',
   phone: '',
-  realName: ''
+  realName: '',
+  staffNo: '',
+  stationId: null
 })
 
 const errors = reactive({
   name: '',
   pwd: '',
   phone: '',
-  realName: ''
+  realName: '',
+  staffNo: '',
+  station: ''
 })
 
 const pwdVisible = ref(false)
 const loading = ref(false)
+const stations = ref([])
+const stationIndex = ref(-1)
+
+const isAttendant = computed(() => form.role === 'attendant')
+const stationNames = computed(() => stations.value.map((s) => s.stationName))
+const stationName = computed(() => {
+  const station = stations.value[stationIndex.value]
+  return station ? station.stationName : ''
+})
+
+function switchRole(role) {
+  if (form.role === role) return
+  form.role = role
+  errors.realName = ''
+  errors.staffNo = ''
+  errors.station = ''
+  if (role === 'user') {
+    form.staffNo = ''
+    form.stationId = null
+    stationIndex.value = -1
+  }
+}
+
+async function loadStations() {
+  try {
+    const data = await get('/app/stations')
+    stations.value = data.data || []
+  } catch (e) {
+    stations.value = []
+  }
+}
+
+function onStationChange(e) {
+  stationIndex.value = Number(e.detail.value)
+  const station = stations.value[stationIndex.value]
+  form.stationId = station ? station.id : null
+  errors.station = ''
+}
 
 function validate() {
   errors.name = ''
   errors.pwd = ''
   errors.phone = ''
   errors.realName = ''
+  errors.staffNo = ''
+  errors.station = ''
 
   let valid = true
   const name = form.name.trim()
@@ -140,7 +250,24 @@ function validate() {
     valid = false
   }
 
-  if (realName && (realName.length < 2 || realName.length > 20)) {
+  if (isAttendant.value) {
+    if (!realName || realName.length < 2 || realName.length > 20) {
+      errors.realName = '真实姓名需为 2-20 个字'
+      valid = false
+    }
+    const staffNo = form.staffNo.trim()
+    if (!staffNo) {
+      errors.staffNo = '请输入员工工号'
+      valid = false
+    } else if (!/^[A-Za-z0-9]{4,20}$/.test(staffNo)) {
+      errors.staffNo = '员工工号需为 4-20 位字母或数字'
+      valid = false
+    }
+    if (!form.stationId) {
+      errors.station = '请选择所属车站'
+      valid = false
+    }
+  } else if (realName && (realName.length < 2 || realName.length > 20)) {
     errors.realName = '真实姓名需为 2-20 个字'
     valid = false
   }
@@ -154,20 +281,27 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    await post('/app/register', {
+    const data = await post('/app/register', {
+      role: form.role,
       name: form.name.trim(),
       pwd: form.pwd,
       phone: form.phone.trim(),
-      realName: form.realName.trim()
+      realName: form.realName.trim(),
+      staffNo: isAttendant.value ? form.staffNo.trim() : '',
+      stationId: isAttendant.value ? form.stationId : null
     })
     // 不自动登录：注册成功后回到登录页，并把账号回填，密码由用户自己输入
     uni.setStorageSync('pendingLoginName', form.name.trim())
-    uni.showToast({ title: '注册成功，请登录', icon: 'none', duration: 1500 })
+    uni.showToast({
+      title: data.msg || (isAttendant.value ? '提交成功，请等待审核' : '注册成功，请登录'),
+      icon: 'none',
+      duration: 1800
+    })
     setTimeout(() => {
       uni.navigateBack({
         fail: () => uni.reLaunch({ url: '/pages/login/login' })
       })
-    }, 1500)
+    }, 1600)
   } catch (e) {
     // 后端错误就近展示到对应字段，其余错误统一提示
     const msg = e.message || '注册失败，请稍后重试'
@@ -179,6 +313,10 @@ async function onSubmit() {
       errors.pwd = msg
     } else if (/姓名/.test(msg)) {
       errors.realName = msg
+    } else if (/工号/.test(msg)) {
+      errors.staffNo = msg
+    } else if (/车站/.test(msg)) {
+      errors.station = msg
     } else {
       uni.showToast({ title: msg, icon: 'none' })
     }
@@ -186,6 +324,8 @@ async function onSubmit() {
     loading.value = false
   }
 }
+
+loadStations()
 </script>
 
 <style scoped>
@@ -198,7 +338,7 @@ async function onSubmit() {
 .intro {
   display: flex;
   flex-direction: column;
-  margin-bottom: 40rpx;
+  margin-bottom: 24rpx;
   padding: 0 8rpx;
 }
 
@@ -213,6 +353,32 @@ async function onSubmit() {
   margin-top: 12rpx;
   font-size: 24rpx;
   color: #64748b;
+}
+
+.role-tabs {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+  padding: 0 8rpx;
+}
+
+.role-tab {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #64748b;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+}
+
+.role-tab.active {
+  color: #ffffff;
+  background: linear-gradient(90deg, #1677ff, #4f9bff);
+  border-color: transparent;
+  font-weight: 600;
 }
 
 .form-card {
@@ -252,6 +418,22 @@ async function onSubmit() {
   border-radius: 16rpx;
   font-size: 30rpx;
   color: #1f2937;
+}
+
+.picker-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  line-height: 92rpx;
+}
+
+.picker-text {
+  color: #1f2937;
+}
+
+.picker-arrow {
+  color: #94a3b8;
+  font-size: 30rpx;
 }
 
 .input-error {

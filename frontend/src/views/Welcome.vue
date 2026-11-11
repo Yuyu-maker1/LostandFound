@@ -2,18 +2,14 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { roleTextOf } from "@/utils/role";
 
 const router = useRouter();
 
 const username = computed(() => localStorage.getItem("username") || "管理员");
 
-// 角色文案：按 localStorage 中的实际角色映射，未知角色不再误显示为“车站管理员”
-const roleText = computed(() => {
-  const role = localStorage.getItem("role");
-  if (role === "super_admin") return "超级管理员";
-  if (role === "admin") return "车站管理员";
-  return "未知角色";
-});
+// 角色文案：四种角色统一映射，不再用“未知角色”兜底
+const roleText = computed(() => roleTextOf(localStorage.getItem("role")));
 
 // 根据当前时间生成问候语
 const greeting = computed(() => {

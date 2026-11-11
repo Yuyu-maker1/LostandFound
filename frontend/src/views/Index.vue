@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { roleTextOf } from "@/utils/role";
 
 const route = useRoute();
 const router = useRouter();
@@ -10,12 +11,8 @@ const router = useRouter();
 const username = ref(localStorage.getItem("username") || "管理员");
 const role = ref(localStorage.getItem("role") || "");
 const isSuperAdmin = computed(() => role.value === "super_admin");
-// 显式映射，避免把未知/空角色兜底成“车站管理员”
-const roleText = computed(() => {
-  if (role.value === "super_admin") return "超级管理员";
-  if (role.value === "admin") return "车站管理员";
-  return "未知角色";
-});
+// 四种角色统一映射，不再用“未知角色”兜底
+const roleText = computed(() => roleTextOf(role.value));
 
 // 当前激活菜单与面包屑标题
 const activeMenu = computed(() => route.path);
@@ -45,10 +42,7 @@ const menuGroups = computed(() => {
     },
     {
       title: "用户与基础数据",
-      items: [
-        { path: "/user", title: "用户管理" },
-        { path: "/train", title: "车次信息核对" },
-      ],
+      items: [{ path: "/train", title: "车次信息核对" }],
     },
     {
       title: "数据与安全",
@@ -58,18 +52,21 @@ const menuGroups = computed(() => {
       ],
     },
   ];
-  // 仅超级管理员可见管理员管理入口
+  // 仅超级管理员可见“用户管理 / 管理员管理”入口
   if (isSuperAdmin.value) {
     groups.push({
       title: "系统管理",
-      items: [{ path: "/admins", title: "管理员管理" }],
+      items: [
+        { path: "/users", title: "用户管理" },
+        { path: "/admins", title: "管理员管理" },
+      ],
     });
   }
   return groups;
 });
 
 // 已开发完成的页面路径
-const readyPaths = ["/welcome", "/userinfo", "/admins"];
+const readyPaths = ["/welcome", "/userinfo", "/admins", "/users"];
 
 const handleSelect = (path) => {
   if (readyPaths.includes(path)) {

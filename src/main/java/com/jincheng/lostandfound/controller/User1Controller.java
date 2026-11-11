@@ -34,6 +34,10 @@ public class User1Controller {
     private static final String ROLE_SUPER_ADMIN = "super_admin";
     /** 普通管理员角色标识 */
     private static final String ROLE_ADMIN = "admin";
+    /** 旅客角色标识 */
+    private static final String ROLE_USER = "user";
+    /** 乘务员角色标识 */
+    private static final String ROLE_ATTENDANT = "attendant";
 
     @GetMapping("/find")
     public User1 find(){
@@ -54,7 +58,7 @@ public class User1Controller {
             return result;
         }
 
-        // ===== 第一步：校验图形验证码（存 Session，按教程写法）=====
+        //校验图形验证码（存 Session）
         Object verifyCodeObj = params.get("verifyCode");
         String verifyCode = verifyCodeObj == null ? "" : verifyCodeObj.toString().trim();
 
@@ -83,7 +87,7 @@ public class User1Controller {
         // 一次性使用：校验通过后立即移除，防止重放
         session.removeAttribute("verifyCode");
 
-        // ===== 第二步：校验账号密码 =====
+        // 校验账号密码
         User1 user1 = user1Service.userlogin(name, password);
         if (user1 != null) {
             // 停用账号：即使密码正确也不允许登录
@@ -93,6 +97,7 @@ public class User1Controller {
                 return result;
             }
             // 登录成功后签发会话令牌，前端后续请求通过 Authorization 头携带
+            //原文档中的时间戳 + 用户名哈希方式容易碰撞，不安全。所以改为UUID
             String token = UUID.randomUUID().toString().replace("-", "");
             session.setAttribute("token", token);
             session.setAttribute("name", user1.getName());   // 修改用户信息/密码时定位当前账号
@@ -135,11 +140,19 @@ public class User1Controller {
             return false;
         }
         String inputOldPwd = MD5Util.MD5Encode(oldPwdObj.toString().trim(), "UTF-8");
-        return user1.getPwd().trim().equalsIgnoreCase(inputOldPwd);
+        String sys_pwd = user1.getPwd().trim();
+        if(sys_pwd.equals(inputOldPwd)){
+            return true;
+        }
+        return false;
+//        return user1.getPwd().trim().equalsIgnoreCase(inputOldPwd);
     }
+    //原文档将真实密码存入session，比对密码时直接将session中的密码作为真实密码，与用户输入的旧密码进行比较。
+    // 我采用直接调用service层的getPwd()方法，从数据库中调用出真实密码
+    //原因是直接将密码存入session，会有泄露的风险。
 
     /**
-     * 修改当前登录管理员密码（仅密码，不再读写头像字段）。
+     * 修改当前登录管理员密码。
      */
     @PostMapping("/userInfo")
     @ResponseBody
@@ -157,17 +170,28 @@ public class User1Controller {
     }
 
     /**
-     * 管理员列表（仅超级管理员）。
-     * 不返回 pwd、userimg，避免管理端暴露密码散列与已下线的头像信息。
+     * 管理员列表（仅超级管理员），分页查询。
+     * 按教程约定：page=第几页、limit=每页条数，SQL 起始偏移 start=(page-1)*limit；
+     * 总记录数放入 Result.count，当前页数据放入 Result.data。
+     * 车站、状态筛选下推到 SQL，保证分页总数与筛选结果一致。
      */
     @GetMapping("/admins")
-    public ResponseEntity<Result<Map<String, Object>>> listAdmins(HttpSession session) {
+    public ResponseEntity<Result<Map<String, Object>>> listAdmins(
+            @RequestParam Map<String, Object> map, HttpSession session) {
         Result<Map<String, Object>> result = new Result<>();
         if (!isSuperAdmin(session)) {
             return forbidden(result);
         }
+
+        int page = intParam(map, "page", 1);
+        int limit = intParam(map, "limit", 5);
+        int start = (page - 1) * limit;
+        Integer stationId = toInt(map.get("stationId"));
+        Integer status = toInt(map.get("status"));
+
+        int total = user1Service.countAdmins(stationId, status);
         List<Map<String, Object>> admins = new ArrayList<>();
-        for (User1 user1 : user1Service.listAll()) {
+        for (User1 user1 : user1Service.pageAdmins(start, limit, stationId, status)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", user1.getName());
             item.put("role", user1.getRole());
@@ -183,7 +207,7 @@ public class User1Controller {
         }
         result.setCode(0);
         result.setMsg("ok");
-        result.setCount(admins.size());
+        result.setCount(total);
         result.setData(admins);
         return ResponseEntity.ok(result);
     }
@@ -341,8 +365,158 @@ public class User1Controller {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 用户管理列表（仅超级管理员），分页查询：role=user 查旅客，role=attendant 查乘务员。
+     * 与 /admins 分开，避免管理员列表混入旅客账号。
+     * 分页约定同管理员列表：page / limit / start=(page-1)*limit，count 为总条数。
+     */
+    @GetMapping("/users")
+    public ResponseEntity<Result<Map<String, Object>>> listUsers(
+            @RequestParam Map<String, Object> map, HttpSession session) {
+        Result<Map<String, Object>> result = new Result<>();
+        if (!isSuperAdmin(session)) {
+            return forbidden(result);
+        }
+        String role = str(map.get("role"));
+        if (!ROLE_USER.equals(role) && !ROLE_ATTENDANT.equals(role)) {
+            return badRequest(result, "角色参数只能为 user（旅客）或 attendant（乘务员）");
+        }
+
+        int page = intParam(map, "page", 1);
+        int limit = intParam(map, "limit", 5);
+        int start = (page - 1) * limit;
+        Integer status = toInt(map.get("status"));
+        Integer auditStatus = toInt(map.get("auditStatus"));
+
+        int total = user1Service.countUsers(role, status, auditStatus);
+        List<Map<String, Object>> users = new ArrayList<>();
+        for (User1 user1 : user1Service.pageUsers(start, limit, role, status, auditStatus)) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", user1.getName());
+            item.put("role", user1.getRole());
+            item.put("realName", user1.getRealName());
+            item.put("phone", user1.getPhone());
+            item.put("staffNo", user1.getStaffNo());
+            item.put("stationId", user1.getStationId());
+            item.put("stationName", user1.getStationName());
+            item.put("status", user1.getStatus());
+            item.put("auditStatus", user1.getAuditStatus());
+            item.put("auditRemark", user1.getAuditRemark());
+            item.put("auditTime", user1.getAuditTime());
+            users.add(item);
+        }
+        result.setCode(0);
+        result.setMsg("ok");
+        result.setCount(total);
+        result.setData(users);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 启用/停用旅客或乘务员账号（仅超级管理员）。
+     * 乘务员必须先审核通过才允许启用，避免绕过审核。
+     */
+    @PostMapping("/users/{name}/status")
+    public ResponseEntity<Result<Map<String, Object>>> changeUserStatus(
+            @PathVariable("name") String name,
+            @RequestBody Map<String, Object> params,
+            HttpSession session) {
+        Result<Map<String, Object>> result = new Result<>();
+        if (!isSuperAdmin(session)) {
+            return forbidden(result);
+        }
+        Integer status = toInt(params.get("status"));
+        if (status == null || (status != 0 && status != 1)) {
+            return badRequest(result, "状态值只能为 0（停用）或 1（启用）");
+        }
+        User1 target = user1Service.getByName(name);
+        if (target == null) {
+            return badRequest(result, "账号不存在");
+        }
+        if (!ROLE_USER.equals(target.getRole()) && !ROLE_ATTENDANT.equals(target.getRole())) {
+            return badRequest(result, "该账号不是旅客或乘务员账号");
+        }
+        if (status == 1 && ROLE_ATTENDANT.equals(target.getRole())
+                && (target.getAuditStatus() == null || target.getAuditStatus() != 1)) {
+            return badRequest(result, "乘务员需审核通过后才能启用");
+        }
+        if (!user1Service.updateStatus(name, status)) {
+            return badRequest(result, "状态更新失败");
+        }
+
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("name", name);
+        item.put("status", status);
+        result.setCode(0);
+        result.setMsg(status == 1 ? "已启用" : "已停用");
+        result.setData1(item);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 乘务员审核（仅超级管理员）：auditStatus=1 通过并同时启用；auditStatus=2 驳回并停用。
+     * 驳回时可填 remark（最长 200 字），会展示给被驳回的乘务员。
+     */
+    @PostMapping("/users/{name}/audit")
+    public ResponseEntity<Result<Map<String, Object>>> auditAttendant(
+            @PathVariable("name") String name,
+            @RequestBody Map<String, Object> params,
+            HttpSession session) {
+        Result<Map<String, Object>> result = new Result<>();
+        if (!isSuperAdmin(session)) {
+            return forbidden(result);
+        }
+        Integer auditStatus = toInt(params.get("auditStatus"));
+        if (auditStatus == null || (auditStatus != 1 && auditStatus != 2)) {
+            return badRequest(result, "审核结果只能为 1（通过）或 2（驳回）");
+        }
+        String remark = str(params.get("remark"));
+        if (StringUtils.hasText(remark) && remark.length() > 200) {
+            return badRequest(result, "驳回原因最长 200 字");
+        }
+
+        User1 target = user1Service.getByName(name);
+        if (target == null) {
+            return badRequest(result, "账号不存在");
+        }
+        if (!ROLE_ATTENDANT.equals(target.getRole())) {
+            return badRequest(result, "该账号不是乘务员账号");
+        }
+
+        boolean pass = auditStatus == 1;
+        String auditRemark = pass ? null : (StringUtils.hasText(remark) ? remark : null);
+        if (!user1Service.auditAttendant(name, auditStatus, auditRemark, pass ? 1 : 0)) {
+            return badRequest(result, "审核操作失败");
+        }
+
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("name", name);
+        item.put("auditStatus", auditStatus);
+        item.put("status", pass ? 1 : 0);
+        item.put("auditRemark", auditRemark);
+        result.setCode(0);
+        result.setMsg(pass ? "审核通过，账号已启用" : "已驳回");
+        result.setData1(item);
+        return ResponseEntity.ok(result);
+    }
+
     private String str(Object value) {
         return value == null ? "" : value.toString().trim();
+    }
+
+    /**
+     * 解析分页参数：缺省或非法时回退默认值，page 最小 1，limit 限制在 1-100，
+     * 避免 page=0 产生负数偏移或 limit 过大拖垮查询。
+     */
+    private int intParam(Map<String, Object> map, String key, int defaultValue) {
+        Integer value = toInt(map.get(key));
+        if (value == null) {
+            return defaultValue;
+        }
+        if ("page".equals(key)) {
+            return Math.max(value, 1);
+        }
+        return Math.min(Math.max(value, 1), 100);
     }
 
     private Integer toInt(Object value) {

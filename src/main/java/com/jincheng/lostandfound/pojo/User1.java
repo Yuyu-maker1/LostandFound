@@ -35,8 +35,17 @@ public class User1 {
     /** 备注（选填，最长 200 字） */
     private String remark;
 
-    /** 状态：1-启用 0-停用 */
+    /** 状态：1-启用 0-停用（与审核状态相互独立） */
     private Integer status;
+
+    /** 审核状态：0-待审核 1-已通过 2-已驳回（旅客注册默认已通过） */
+    private Integer auditStatus;
+
+    /** 审核备注（驳回原因） */
+    private String auditRemark;
+
+    /** 审核时间（数据库 DATETIME，查询时按字符串返回，便于前端直接展示） */
+    private String auditTime;
 
     public String getName() {
         return name;
@@ -137,6 +146,30 @@ public class User1 {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public Integer getAuditStatus() {
+        return auditStatus;
+    }
+
+    public void setAuditStatus(Integer auditStatus) {
+        this.auditStatus = auditStatus;
+    }
+
+    public String getAuditRemark() {
+        return auditRemark;
+    }
+
+    public void setAuditRemark(String auditRemark) {
+        this.auditRemark = auditRemark == null ? null : auditRemark.trim();
+    }
+
+    public String getAuditTime() {
+        return auditTime;
+    }
+
+    public void setAuditTime(String auditTime) {
+        this.auditTime = auditTime;
     }
 
     @Override

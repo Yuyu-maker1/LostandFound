@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { roleTextOf } from "@/utils/role";
 
 const admins = ref([]);
 const stations = ref([]);
@@ -14,6 +15,13 @@ const stationFormRef = ref(null);
 const noStationMatch = ref(false);
 const filterStationId = ref(null);
 const filterStatus = ref("");
+
+// 分页参数：与后端约定 page（第几页）/ limit（每页条数），total 由后端 count 回填
+const pagination = reactive({
+  page: 1,
+  limit: 10,
+  total: 0,
+});
 
 const currentName = localStorage.getItem("username") || "";
 const isSuperAdmin = localStorage.getItem("role") === "super_admin";
@@ -94,34 +102,24 @@ const authHeader = () => ({
   Authorization: localStorage.getItem("token") || "",
 });
 
-const roleText = (role) => {
-  if (role === "super_admin") return "超级管理员";
-  if (role === "admin") return "车站管理员";
-  return "未知角色";
-};
-
-const filteredAdmins = computed(() =>
-  admins.value.filter((row) => {
-    if (
-      filterStationId.value !== null &&
-      row.stationId !== filterStationId.value
-    ) {
-      return false;
-    }
-    if (
-      filterStatus.value !== "" &&
-      String(row.status) !== String(filterStatus.value)
-    ) {
-      return false;
-    }
-    return true;
-  })
-);
+const roleText = roleTextOf;
 
 const loadAdmins = async () => {
   loading.value = true;
   try {
-    const res = await fetch("/admin/admins", { headers: authHeader() });
+    const params = new URLSearchParams({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+    if (filterStationId.value !== null) {
+      params.append("stationId", filterStationId.value);
+    }
+    if (filterStatus.value !== "") {
+      params.append("status", filterStatus.value);
+    }
+    const res = await fetch(`/admin/admins?${params.toString()}`, {
+      headers: authHeader(),
+    });
     if (res.status === 403) {
       ElMessage.error("无权限：仅超级管理员可查看管理员列表");
       return;
@@ -129,6 +127,17 @@ const loadAdmins = async () => {
     const data = await res.json();
     if (data.code === 0) {
       admins.value = data.data || [];
+      pagination.total = data.count || 0;
+      // 当前页被删/筛选后可能越界，回退到最后一页重新查询
+      if (admins.value.length === 0 && pagination.page > 1) {
+        pagination.page = Math.max(
+          1,
+          Math.ceil(pagination.total / pagination.limit)
+        );
+        loading.value = false;
+        await loadAdmins();
+        return;
+      }
     } else {
       ElMessage.error(data.msg || "加载管理员列表失败");
     }
@@ -138,6 +147,25 @@ const loadAdmins = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// 点击页码 / 上一页下一页
+const handlePageChange = (page) => {
+  pagination.page = page;
+  loadAdmins();
+};
+
+// 改变每页条数后回到第一页
+const handleSizeChange = (limit) => {
+  pagination.limit = limit;
+  pagination.page = 1;
+  loadAdmins();
+};
+
+// 筛选条件变化：重置到第一页，由后端按条件分页查询
+const handleFilterChange = () => {
+  pagination.page = 1;
+  loadAdmins();
 };
 
 const loadStations = async (keyword = "") => {
@@ -204,6 +232,8 @@ const handleSubmit = async () => {
     if (data.code === 0) {
       ElMessage.success("新增管理员成功");
       dialogVisible.value = false;
+      // 新增后回到第一页，保证能看到最新数据（列表按账号排序，新账号可能不在当前页）
+      pagination.page = 1;
       loadAdmins();
     } else {
       ElMessage.error(data.msg || "新增管理员失败");
@@ -329,6 +359,7 @@ onMounted(() => {
           placeholder="按车站筛选"
           clearable
           class="filter-item"
+          @change="handleFilterChange"
         >
           <el-option
             v-for="s in stations"
@@ -342,13 +373,14 @@ onMounted(() => {
           placeholder="按状态筛选"
           clearable
           class="filter-item"
+          @change="handleFilterChange"
         >
           <el-option label="启用" value="1" />
           <el-option label="停用" value="0" />
         </el-select>
       </div>
 
-      <el-table v-loading="loading" :data="filteredAdmins" class="admin-table">
+      <el-table v-loading="loading" :data="admins" class="admin-table">
         <el-table-column prop="name" label="登录账号" min-width="130" />
         <el-table-column prop="staffNo" label="工号" min-width="110" />
         <el-table-column prop="realName" label="姓名" min-width="100" />
@@ -390,6 +422,19 @@ onMounted(() => {
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pager-bar">
+        <el-pagination
+          :current-page="pagination.page"
+          :page-size="pagination.limit"
+          :page-sizes="[5, 10, 20, 50]"
+          :total="pagination.total"
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
     </section>
   </div>
 
@@ -552,6 +597,12 @@ onMounted(() => {
 
 .admin-table {
   width: 100%;
+}
+
+.pager-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .self-tip {

@@ -19,6 +19,11 @@ export default defineConfig({
       '/admin': {
         target: apiTarget,
         changeOrigin: true
+      },
+      // 头像等上传文件的静态访问路径
+      '/upload': {
+        target: apiTarget,
+        changeOrigin: true
       }
     }
   }

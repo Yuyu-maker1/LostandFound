@@ -14,6 +14,9 @@
     <result column="id_card" jdbcType="VARCHAR" property="idCard" />
     <result column="remark" jdbcType="VARCHAR" property="remark" />
     <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="audit_status" jdbcType="INTEGER" property="auditStatus" />
+    <result column="audit_remark" jdbcType="VARCHAR" property="auditRemark" />
+    <result column="audit_time" jdbcType="TIMESTAMP" property="auditTime" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -74,7 +77,8 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    name, pwd, userimg, role, staff_no, station_id, real_name, phone, id_card, remark, status
+    name, pwd, userimg, role, staff_no, station_id, real_name, phone, id_card, remark, status,
+    audit_status, audit_remark, audit_time
   </sql>
   <select id="selectByExample" parameterType="com.jincheng.lostandfound.pojo.User1Example" resultMap="BaseResultMap">
     select
@@ -148,6 +152,12 @@
       <if test="status != null">
         status,
       </if>
+      <if test="auditStatus != null">
+        audit_status,
+      </if>
+      <if test="auditRemark != null">
+        audit_remark,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="name != null">
@@ -182,6 +192,12 @@
       </if>
       <if test="status != null">
         #{status,jdbcType=INTEGER},
+      </if>
+      <if test="auditStatus != null">
+        #{auditStatus,jdbcType=INTEGER},
+      </if>
+      <if test="auditRemark != null">
+        #{auditRemark,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -269,14 +285,74 @@
     <include refid="Base_Column_List" />
     from user1 limit 1
   </select>
-  <!-- 管理员列表：联表带出车站名称，供超级管理员查看 -->
-  <select id="selectAll" resultMap="BaseResultMap">
+  <!-- 管理员查询条件：只取 admin / super_admin，旅客与乘务员不再混入 -->
+  <sql id="Admin_Query_Where">
+    where u.role in ('admin', 'super_admin')
+    <if test="stationId != null">
+      and u.station_id = #{stationId,jdbcType=INTEGER}
+    </if>
+    <if test="status != null">
+      and u.status = #{status,jdbcType=INTEGER}
+    </if>
+  </sql>
+  <!-- 管理员分页查询：limit #{start},#{limit}，start 由 (page-1)*limit 计算得出 -->
+  <select id="selectAdminPage" resultMap="BaseResultMap">
     select u.name, u.pwd, u.userimg, u.role, u.staff_no, u.station_id, u.real_name,
-           u.phone, u.id_card, u.remark, u.status, s.station_name
+           u.phone, u.id_card, u.remark, u.status, u.audit_status, u.audit_remark,
+           u.audit_time, s.station_name
     from user1 u
     left join station s on s.id = u.station_id
+    <include refid="Admin_Query_Where" />
     order by u.name
+    limit #{start},#{limit}
   </select>
+  <!-- 管理员总记录数：与分页查询共用同一套筛选条件，保证分页总数正确 -->
+  <select id="countAdmins" resultType="int">
+    select count(*)
+    from user1 u
+    <include refid="Admin_Query_Where" />
+  </select>
+  <!-- 用户查询条件：按角色（user / attendant），可选状态与审核状态 -->
+  <sql id="User_Query_Where">
+    where u.role = #{role,jdbcType=VARCHAR}
+    <if test="status != null">
+      and u.status = #{status,jdbcType=INTEGER}
+    </if>
+    <if test="auditStatus != null">
+      and u.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+  </sql>
+  <!-- 用户分页查询 -->
+  <select id="selectUserPage" resultMap="BaseResultMap">
+    select u.name, u.pwd, u.userimg, u.role, u.staff_no, u.station_id, u.real_name,
+           u.phone, u.id_card, u.remark, u.status, u.audit_status, u.audit_remark,
+           u.audit_time, s.station_name
+    from user1 u
+    left join station s on s.id = u.station_id
+    <include refid="User_Query_Where" />
+    order by u.name
+    limit #{start},#{limit}
+  </select>
+  <!-- 用户总记录数 -->
+  <select id="countUsers" resultType="int">
+    select count(*)
+    from user1 u
+    <include refid="User_Query_Where" />
+  </select>
+  <!-- 乘务员审核：一次性更新审核状态、备注、审核时间与启用状态 -->
+  <update id="auditAttendant">
+    update user1
+    set audit_status = #{auditStatus,jdbcType=INTEGER},
+        audit_remark = #{auditRemark,jdbcType=VARCHAR},
+        audit_time = NOW(),
+        status = #{status,jdbcType=INTEGER}
+    where name = #{name,jdbcType=VARCHAR} and role = 'attendant'
+  </update>
+  <!-- 更新头像相对路径 -->
+  <update id="updateUserImg">
+    update user1 set userimg = #{userimg,jdbcType=VARCHAR}
+    where name = #{name,jdbcType=VARCHAR}
+  </update>
   <select id="selectByStaffNo" resultMap="BaseResultMap">
     select <include refid="Base_Column_List" /> from user1
     where staff_no = #{staffNo,jdbcType=VARCHAR}

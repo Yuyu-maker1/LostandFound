@@ -18,6 +18,11 @@ public class StationServiceImpl implements StationService {
     }
 
     @Override
+    public List<Station> listAllEnabled() {
+        return stationMapper.selectAllEnabled();
+    }
+
+    @Override
     public Station getEnabledById(Integer id) {
         if (id == null) {
             return null;

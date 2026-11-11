@@ -41,8 +41,23 @@ public class User1ServiceImpl implements User1Service{
     }
 
     @Override
-    public List<User1> listAll() {
-        return user1Mapper.selectAll();
+    public int countAdmins(Integer stationId, Integer status) {
+        return user1Mapper.countAdmins(stationId, status);
+    }
+
+    @Override
+    public List<User1> pageAdmins(int start, int limit, Integer stationId, Integer status) {
+        return user1Mapper.selectAdminPage(stationId, status, start, limit);
+    }
+
+    @Override
+    public int countUsers(String role, Integer status, Integer auditStatus) {
+        return user1Mapper.countUsers(role, status, auditStatus);
+    }
+
+    @Override
+    public List<User1> pageUsers(int start, int limit, String role, Integer status, Integer auditStatus) {
+        return user1Mapper.selectUserPage(role, status, auditStatus, start, limit);
     }
 
     @Override
@@ -81,5 +96,15 @@ public class User1ServiceImpl implements User1Service{
     @Override
     public boolean updateStatus(String name, Integer status) {
         return user1Mapper.updateStatus(name, status) > 0;
+    }
+
+    @Override
+    public boolean auditAttendant(String name, Integer auditStatus, String auditRemark, Integer status) {
+        return user1Mapper.auditAttendant(name, auditStatus, auditRemark, status) > 0;
+    }
+
+    @Override
+    public boolean updateUserImg(String name, String userimg) {
+        return user1Mapper.updateUserImg(name, userimg) > 0;
     }
 }

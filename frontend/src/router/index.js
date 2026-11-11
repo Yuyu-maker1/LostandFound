@@ -5,6 +5,7 @@ import Index from "@/views/Index.vue";
 import Welcome from "@/views/Welcome.vue";
 import UserInfo from "@/views/UserInfo.vue";
 import AdminManage from "@/views/AdminManage.vue";
+import UserManage from "@/views/UserManage.vue";
 
 const routes = [
   {
@@ -57,6 +58,13 @@ const routes = [
         name: "admins",
         component: AdminManage,
         meta: { title: "管理员管理", requiresSuper: true },
+      },
+      {
+        // 用户管理：旅客 / 乘务员，仅超级管理员可访问
+        path: "/users",
+        name: "users",
+        component: UserManage,
+        meta: { title: "用户管理", requiresSuper: true },
       },
     ],
   },
