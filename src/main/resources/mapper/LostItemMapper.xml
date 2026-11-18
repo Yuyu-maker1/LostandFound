@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jincheng.lostandfound.dao.LostItemMapper">
+
+  <resultMap id="BaseResultMap" type="com.jincheng.lostandfound.pojo.LostItem">
+    <id column="lost_id" jdbcType="INTEGER" property="lostId" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="category_id" jdbcType="INTEGER" property="categoryId" />
+    <result column="title" jdbcType="VARCHAR" property="title" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="item_image" jdbcType="VARCHAR" property="itemImage" />
+    <result column="train_no" jdbcType="VARCHAR" property="trainNo" />
+    <result column="carriage_no" jdbcType="VARCHAR" property="carriageNo" />
+    <result column="seat_no" jdbcType="VARCHAR" property="seatNo" />
+    <result column="travel_date" jdbcType="VARCHAR" property="travelDate" />
+    <result column="lost_time" jdbcType="VARCHAR" property="lostTime" />
+    <result column="lost_location" jdbcType="VARCHAR" property="lostLocation" />
+    <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="audit_status" jdbcType="INTEGER" property="auditStatus" />
+    <result column="audit_remark" jdbcType="VARCHAR" property="auditRemark" />
+    <result column="audit_time" jdbcType="VARCHAR" property="auditTime" />
+    <result column="create_time" jdbcType="VARCHAR" property="createTime" />
+    <result column="category_name" jdbcType="VARCHAR" property="categoryName" />
+    <result column="publisher_name" jdbcType="VARCHAR" property="publisherName" />
+    <result column="publisher_role" jdbcType="VARCHAR" property="publisherRole" />
+    <result column="publisher_phone" jdbcType="VARCHAR" property="publisherPhone" />
+  </resultMap>
+
+  <sql id="Base_Columns">
+    l.lost_id, l.user_id, l.category_id, l.title, l.description, l.item_image,
+    l.train_no, l.carriage_no, l.seat_no,
+    DATE_FORMAT(l.travel_date, '%Y-%m-%d') AS travel_date,
+    DATE_FORMAT(l.lost_time, '%Y-%m-%d %H:%i') AS lost_time,
+    l.lost_location, l.status, l.audit_status, l.audit_remark,
+    DATE_FORMAT(l.audit_time, '%Y-%m-%d %H:%i') AS audit_time,
+    DATE_FORMAT(l.create_time, '%Y-%m-%d %H:%i') AS create_time,
+    c.category_name,
+    COALESCE(NULLIF(u.real_name, ''), u.name) AS publisher_name,
+    u.role AS publisher_role
+  </sql>
+
+  <sql id="Base_Join">
+    LEFT JOIN category c ON c.category_id = l.category_id
+    LEFT JOIN user1 u ON u.name = l.user_id
+  </sql>
+
+  <insert id="insert" parameterType="com.jincheng.lostandfound.pojo.LostItem"
+          useGeneratedKeys="true" keyProperty="lostId">
+    INSERT INTO lost_item
+      (user_id, category_id, title, description, item_image, train_no,
+       carriage_no, seat_no, travel_date, lost_time, lost_location,
+       status, audit_status, create_time)
+    VALUES
+      (#{userId,jdbcType=VARCHAR}, #{categoryId,jdbcType=INTEGER}, #{title,jdbcType=VARCHAR},
+       #{description,jdbcType=VARCHAR}, #{itemImage,jdbcType=VARCHAR}, #{trainNo,jdbcType=VARCHAR},
+       #{carriageNo,jdbcType=VARCHAR}, #{seatNo,jdbcType=VARCHAR}, #{travelDate,jdbcType=VARCHAR},
+       #{lostTime,jdbcType=VARCHAR}, #{lostLocation,jdbcType=VARCHAR},
+       #{status,jdbcType=INTEGER}, #{auditStatus,jdbcType=INTEGER}, NOW())
+  </insert>
+
+  <!-- 我的发布查询条件：本人记录、可选审核状态、可选物品名称/车次模糊查询 -->
+  <sql id="Mine_Where">
+    WHERE l.user_id = #{userId,jdbcType=VARCHAR}
+    <if test="auditStatus != null">
+      AND l.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND (l.title LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR l.train_no LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
+  </sql>
+
+  <select id="countMine" resultType="int">
+    SELECT COUNT(*) FROM lost_item l
+    <include refid="Mine_Where" />
+  </select>
+
+  <select id="selectMine" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />
+      FROM lost_item l
+      <include refid="Base_Join" />
+    <include refid="Mine_Where" />
+     ORDER BY l.create_time DESC, l.lost_id DESC
+     LIMIT #{start,jdbcType=INTEGER}, #{limit,jdbcType=INTEGER}
+  </select>
+
+  <select id="selectById" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />, u.phone AS publisher_phone
+      FROM lost_item l
+      <include refid="Base_Join" />
+     WHERE l.lost_id = #{lostId,jdbcType=INTEGER}
+  </select>
+
+  <update id="markFound">
+    UPDATE lost_item
+       SET status = 1
+     WHERE lost_id = #{lostId,jdbcType=INTEGER}
+       AND user_id = #{userId,jdbcType=VARCHAR}
+       AND status = 0
+  </update>
+
+  <update id="resubmitById">
+    UPDATE lost_item
+       SET audit_status = 0, audit_remark = NULL, audit_time = NULL
+     WHERE lost_id = #{lostId,jdbcType=INTEGER}
+       AND user_id = #{userId,jdbcType=VARCHAR}
+       AND audit_status = 2
+  </update>
+
+  <sql id="Admin_Where">
+    WHERE 1 = 1
+    <if test="auditStatus != null">
+      AND l.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+    <if test="status != null">
+      AND l.status = #{status,jdbcType=INTEGER}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND (l.title LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR l.train_no LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR l.user_id LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR u.real_name LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
+  </sql>
+
+  <select id="countAdmin" resultType="int">
+    SELECT COUNT(*)
+      FROM lost_item l
+      LEFT JOIN user1 u ON u.name = l.user_id
+    <include refid="Admin_Where" />
+  </select>
+
+  <select id="selectAdminPage" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />, u.phone AS publisher_phone
+      FROM lost_item l
+      <include refid="Base_Join" />
+    <include refid="Admin_Where" />
+     ORDER BY l.audit_status ASC, l.create_time DESC, l.lost_id DESC
+     LIMIT #{start,jdbcType=INTEGER}, #{limit,jdbcType=INTEGER}
+  </select>
+
+  <update id="audit">
+    UPDATE lost_item
+       SET audit_status = #{auditStatus,jdbcType=INTEGER},
+           audit_remark = #{auditRemark,jdbcType=VARCHAR},
+           audit_time = NOW()
+     WHERE lost_id = #{lostId,jdbcType=INTEGER}
+  </update>
+
+</mapper>

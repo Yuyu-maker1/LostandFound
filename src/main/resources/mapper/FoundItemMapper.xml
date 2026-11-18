@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jincheng.lostandfound.dao.FoundItemMapper">
+
+  <resultMap id="BaseResultMap" type="com.jincheng.lostandfound.pojo.FoundItem">
+    <id column="found_id" jdbcType="INTEGER" property="foundId" />
+    <result column="user_id" jdbcType="VARCHAR" property="userId" />
+    <result column="station_id" jdbcType="INTEGER" property="stationId" />
+    <result column="category_id" jdbcType="INTEGER" property="categoryId" />
+    <result column="title" jdbcType="VARCHAR" property="title" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="item_image" jdbcType="VARCHAR" property="itemImage" />
+    <result column="train_no" jdbcType="VARCHAR" property="trainNo" />
+    <result column="carriage_no" jdbcType="VARCHAR" property="carriageNo" />
+    <result column="seat_no" jdbcType="VARCHAR" property="seatNo" />
+    <result column="found_time" jdbcType="VARCHAR" property="foundTime" />
+    <result column="found_location" jdbcType="VARCHAR" property="foundLocation" />
+    <result column="storage_location" jdbcType="VARCHAR" property="storageLocation" />
+    <result column="custody" jdbcType="INTEGER" property="custody" />
+    <result column="status" jdbcType="INTEGER" property="status" />
+    <result column="audit_status" jdbcType="INTEGER" property="auditStatus" />
+    <result column="audit_remark" jdbcType="VARCHAR" property="auditRemark" />
+    <result column="audit_time" jdbcType="VARCHAR" property="auditTime" />
+    <result column="create_time" jdbcType="VARCHAR" property="createTime" />
+    <result column="category_name" jdbcType="VARCHAR" property="categoryName" />
+    <result column="station_name" jdbcType="VARCHAR" property="stationName" />
+    <result column="publisher_name" jdbcType="VARCHAR" property="publisherName" />
+    <result column="publisher_role" jdbcType="VARCHAR" property="publisherRole" />
+    <result column="publisher_phone" jdbcType="VARCHAR" property="publisherPhone" />
+  </resultMap>
+
+  <sql id="Base_Columns">
+    f.found_id, f.user_id, f.station_id, f.category_id, f.title, f.description, f.item_image,
+    f.train_no, f.carriage_no, f.seat_no,
+    DATE_FORMAT(f.found_time, '%Y-%m-%d %H:%i') AS found_time,
+    f.found_location, f.storage_location, f.custody, f.status, f.audit_status, f.audit_remark,
+    DATE_FORMAT(f.audit_time, '%Y-%m-%d %H:%i') AS audit_time,
+    DATE_FORMAT(f.create_time, '%Y-%m-%d %H:%i') AS create_time,
+    c.category_name, s.station_name,
+    COALESCE(NULLIF(u.real_name, ''), u.name) AS publisher_name,
+    u.role AS publisher_role
+  </sql>
+
+  <sql id="Base_Join">
+    LEFT JOIN category c ON c.category_id = f.category_id
+    LEFT JOIN station s ON s.id = f.station_id
+    LEFT JOIN user1 u ON u.name = f.user_id
+  </sql>
+
+  <select id="selectCategories" resultType="java.util.LinkedHashMap">
+    SELECT category_id AS categoryId, category_name AS categoryName
+      FROM category
+     ORDER BY category_id
+  </select>
+
+  <select id="countCategory" resultType="int">
+    SELECT COUNT(*) FROM category WHERE category_id = #{categoryId,jdbcType=INTEGER}
+  </select>
+
+  <insert id="insert" parameterType="com.jincheng.lostandfound.pojo.FoundItem"
+          useGeneratedKeys="true" keyProperty="foundId">
+    INSERT INTO found_item
+      (user_id, station_id, category_id, title, description, item_image, train_no,
+       carriage_no, seat_no, found_time, found_location, storage_location,
+       custody, status, audit_status, create_time)
+    VALUES
+      (#{userId,jdbcType=VARCHAR}, #{stationId,jdbcType=INTEGER}, #{categoryId,jdbcType=INTEGER},
+       #{title,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, #{itemImage,jdbcType=VARCHAR},
+       #{trainNo,jdbcType=VARCHAR}, #{carriageNo,jdbcType=VARCHAR}, #{seatNo,jdbcType=VARCHAR},
+       #{foundTime,jdbcType=VARCHAR}, #{foundLocation,jdbcType=VARCHAR},
+       #{storageLocation,jdbcType=VARCHAR}, #{custody,jdbcType=INTEGER},
+       #{status,jdbcType=INTEGER}, #{auditStatus,jdbcType=INTEGER}, NOW())
+  </insert>
+
+  <!-- 我的发布查询条件：本人记录、可选审核状态、可选物品名称/车次模糊查询 -->
+  <sql id="Mine_Where">
+    WHERE f.user_id = #{userId,jdbcType=VARCHAR}
+    <if test="auditStatus != null">
+      AND f.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND (f.title LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR f.train_no LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
+  </sql>
+
+  <select id="countMine" resultType="int">
+    SELECT COUNT(*) FROM found_item f
+    <include refid="Mine_Where" />
+  </select>
+
+  <select id="selectMine" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />
+      FROM found_item f
+      <include refid="Base_Join" />
+    <include refid="Mine_Where" />
+     ORDER BY f.create_time DESC, f.found_id DESC
+     LIMIT #{start,jdbcType=INTEGER}, #{limit,jdbcType=INTEGER}
+  </select>
+
+  <select id="selectById" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />, u.phone AS publisher_phone
+      FROM found_item f
+      <include refid="Base_Join" />
+     WHERE f.found_id = #{foundId,jdbcType=INTEGER}
+  </select>
+
+  <update id="offById">
+    UPDATE found_item
+       SET status = 3
+     WHERE found_id = #{foundId,jdbcType=INTEGER}
+       AND user_id = #{userId,jdbcType=VARCHAR}
+       AND status IN (0, 1)
+  </update>
+
+  <update id="resubmitById">
+    UPDATE found_item
+       SET audit_status = 0, audit_remark = NULL, audit_time = NULL
+     WHERE found_id = #{foundId,jdbcType=INTEGER}
+       AND user_id = #{userId,jdbcType=VARCHAR}
+       AND audit_status = 2
+       AND status &lt;&gt; 3
+  </update>
+
+  <sql id="Admin_Where">
+    WHERE 1 = 1
+    <if test="auditStatus != null">
+      AND f.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+    <if test="status != null">
+      AND f.status = #{status,jdbcType=INTEGER}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND (f.title LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR f.train_no LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR f.user_id LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%')
+           OR u.real_name LIKE CONCAT('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
+  </sql>
+
+  <select id="countAdmin" resultType="int">
+    SELECT COUNT(*)
+      FROM found_item f
+      LEFT JOIN user1 u ON u.name = f.user_id
+    <include refid="Admin_Where" />
+  </select>
+
+  <select id="selectAdminPage" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Columns" />, u.phone AS publisher_phone
+      FROM found_item f
+      <include refid="Base_Join" />
+    <include refid="Admin_Where" />
+     ORDER BY f.audit_status ASC, f.create_time DESC, f.found_id DESC
+     LIMIT #{start,jdbcType=INTEGER}, #{limit,jdbcType=INTEGER}
+  </select>
+
+  <update id="audit">
+    UPDATE found_item
+       SET audit_status = #{auditStatus,jdbcType=INTEGER},
+           audit_remark = #{auditRemark,jdbcType=VARCHAR},
+           audit_time = NOW()
+     WHERE found_id = #{foundId,jdbcType=INTEGER}
+  </update>
+
+</mapper>
