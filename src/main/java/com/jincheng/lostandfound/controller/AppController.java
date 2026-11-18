@@ -425,16 +425,17 @@ public class AppController {
     }
 
     /**
-     * 首页聚合数据：公告、分类、最新招领（分页）。
+     * 首页聚合数据：公告、分类、最新招领（分页 + 关键字模糊查询）。
      * 返回结构见 Result.data1：
      * { announcements:[], categories:[], foundList:[], total, pageNum, pageSize }
      */
     @GetMapping("/home")
     public Result<Map<String, Object>> home(
             @RequestParam(value = "pageNum", defaultValue = "1") int pageNum,
-            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize) {
+            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(value = "keyword", required = false) String keyword) {
         Result<Map<String, Object>> result = new Result<>();
-        Map<String, Object> data = homeService.loadHome(pageNum, pageSize);
+        Map<String, Object> data = homeService.loadHome(pageNum, pageSize, keyword);
         result.setCode(0);
         result.setMsg("ok");
         result.setCount(data.get("total") == null ? 0 : (Integer) data.get("total"));

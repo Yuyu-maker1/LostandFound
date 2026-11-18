@@ -66,7 +66,7 @@ const menuGroups = computed(() => {
 });
 
 // 已开发完成的页面路径
-const readyPaths = ["/welcome", "/userinfo", "/admins", "/users"];
+const readyPaths = ["/welcome", "/userinfo", "/admins", "/users", "/audit/found", "/audit/lost"];
 
 const handleSelect = (path) => {
   if (readyPaths.includes(path)) {

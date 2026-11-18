@@ -7,6 +7,8 @@ const users = ref([]);
 const loading = ref(false);
 const filterStatus = ref("");
 const filterAudit = ref("");
+// 模糊查询关键字：账号 / 姓名 / 手机号 / 员工工号
+const filterKeyword = ref("");
 
 // 分页参数：与后端约定 page（第几页）/ limit（每页条数），total 由后端 count 回填
 const pagination = reactive({
@@ -56,6 +58,9 @@ const loadUsers = async () => {
     }
     if (isAttendant.value && filterAudit.value !== "") {
       params.append("auditStatus", filterAudit.value);
+    }
+    if (filterKeyword.value.trim()) {
+      params.append("keyword", filterKeyword.value.trim());
     }
     const res = await fetch(`/admin/users?${params.toString()}`, {
       headers: authHeader(),
@@ -112,6 +117,7 @@ const handleFilterChange = () => {
 const handleTabChange = () => {
   filterStatus.value = "";
   filterAudit.value = "";
+  filterKeyword.value = "";
   users.value = [];
   pagination.page = 1;
   pagination.total = 0;
@@ -243,6 +249,17 @@ onMounted(loadUsers);
           <el-option label="已通过" value="1" />
           <el-option label="已驳回" value="2" />
         </el-select>
+        <el-input
+          v-model="filterKeyword"
+          :placeholder="
+            isAttendant ? '账号 / 姓名 / 手机号 / 工号' : '账号 / 姓名 / 手机号'
+          "
+          clearable
+          class="filter-item keyword-item"
+          @keyup.enter="handleFilterChange"
+          @clear="handleFilterChange"
+        />
+        <el-button type="primary" @click="handleFilterChange">查询</el-button>
       </div>
 
       <el-table v-loading="loading" :data="users" class="user-table">
@@ -407,6 +424,10 @@ onMounted(loadUsers);
 
 .filter-item {
   width: 180px;
+}
+
+.keyword-item {
+  width: 240px;
 }
 
 .user-table {

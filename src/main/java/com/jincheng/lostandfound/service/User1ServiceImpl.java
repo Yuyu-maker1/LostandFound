@@ -41,23 +41,23 @@ public class User1ServiceImpl implements User1Service{
     }
 
     @Override
-    public int countAdmins(Integer stationId, Integer status) {
-        return user1Mapper.countAdmins(stationId, status);
+    public int countAdmins(Integer stationId, Integer status, String keyword) {
+        return user1Mapper.countAdmins(stationId, status, keyword);
     }
 
     @Override
-    public List<User1> pageAdmins(int start, int limit, Integer stationId, Integer status) {
-        return user1Mapper.selectAdminPage(stationId, status, start, limit);
+    public List<User1> pageAdmins(int start, int limit, Integer stationId, Integer status, String keyword) {
+        return user1Mapper.selectAdminPage(stationId, status, keyword, start, limit);
     }
 
     @Override
-    public int countUsers(String role, Integer status, Integer auditStatus) {
-        return user1Mapper.countUsers(role, status, auditStatus);
+    public int countUsers(String role, Integer status, Integer auditStatus, String keyword) {
+        return user1Mapper.countUsers(role, status, auditStatus, keyword);
     }
 
     @Override
-    public List<User1> pageUsers(int start, int limit, String role, Integer status, Integer auditStatus) {
-        return user1Mapper.selectUserPage(role, status, auditStatus, start, limit);
+    public List<User1> pageUsers(int start, int limit, String role, Integer status, Integer auditStatus, String keyword) {
+        return user1Mapper.selectUserPage(role, status, auditStatus, keyword, start, limit);
     }
 
     @Override

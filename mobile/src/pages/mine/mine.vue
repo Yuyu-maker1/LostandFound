@@ -22,9 +22,9 @@
         <text>修改密码</text>
         <text class="menu-status">{{ pwdVisible ? '收起' : '去修改' }}</text>
       </view>
-      <view class="menu-item">
+      <view class="menu-item" @click="goMyPublish">
         <text>我的发布</text>
-        <text class="menu-status">开发中</text>
+        <text class="menu-status">查看 ›</text>
       </view>
       <view class="menu-item">
         <text>我的认领</text>
@@ -187,6 +187,10 @@ async function onChangePassword() {
 function onLogout() {
   clearLogin()
   uni.reLaunch({ url: '/pages/login/login' })
+}
+
+function goMyPublish() {
+  uni.navigateTo({ url: '/pages/mine/publish' })
 }
 </script>
 

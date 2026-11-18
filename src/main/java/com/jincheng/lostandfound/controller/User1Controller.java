@@ -188,10 +188,12 @@ public class User1Controller {
         int start = (page - 1) * limit;
         Integer stationId = toInt(map.get("stationId"));
         Integer status = toInt(map.get("status"));
+        // 模糊查询关键字：账号 / 姓名 / 手机号
+        String keyword = str(map.get("keyword"));
 
-        int total = user1Service.countAdmins(stationId, status);
+        int total = user1Service.countAdmins(stationId, status, keyword);
         List<Map<String, Object>> admins = new ArrayList<>();
-        for (User1 user1 : user1Service.pageAdmins(start, limit, stationId, status)) {
+        for (User1 user1 : user1Service.pageAdmins(start, limit, stationId, status, keyword)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", user1.getName());
             item.put("role", user1.getRole());
@@ -387,10 +389,12 @@ public class User1Controller {
         int start = (page - 1) * limit;
         Integer status = toInt(map.get("status"));
         Integer auditStatus = toInt(map.get("auditStatus"));
+        // 模糊查询关键字：账号 / 姓名 / 手机号 / 员工工号
+        String keyword = str(map.get("keyword"));
 
-        int total = user1Service.countUsers(role, status, auditStatus);
+        int total = user1Service.countUsers(role, status, auditStatus, keyword);
         List<Map<String, Object>> users = new ArrayList<>();
-        for (User1 user1 : user1Service.pageUsers(start, limit, role, status, auditStatus)) {
+        for (User1 user1 : user1Service.pageUsers(start, limit, role, status, auditStatus, keyword)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", user1.getName());
             item.put("role", user1.getRole());

@@ -15,6 +15,8 @@ const stationFormRef = ref(null);
 const noStationMatch = ref(false);
 const filterStationId = ref(null);
 const filterStatus = ref("");
+// 模糊查询关键字：账号 / 姓名 / 手机号
+const filterKeyword = ref("");
 
 // 分页参数：与后端约定 page（第几页）/ limit（每页条数），total 由后端 count 回填
 const pagination = reactive({
@@ -116,6 +118,9 @@ const loadAdmins = async () => {
     }
     if (filterStatus.value !== "") {
       params.append("status", filterStatus.value);
+    }
+    if (filterKeyword.value.trim()) {
+      params.append("keyword", filterKeyword.value.trim());
     }
     const res = await fetch(`/admin/admins?${params.toString()}`, {
       headers: authHeader(),
@@ -378,6 +383,15 @@ onMounted(() => {
           <el-option label="启用" value="1" />
           <el-option label="停用" value="0" />
         </el-select>
+        <el-input
+          v-model="filterKeyword"
+          placeholder="账号 / 姓名 / 手机号"
+          clearable
+          class="filter-item keyword-item"
+          @keyup.enter="handleFilterChange"
+          @clear="handleFilterChange"
+        />
+        <el-button type="primary" @click="handleFilterChange">查询</el-button>
       </div>
 
       <el-table v-loading="loading" :data="admins" class="admin-table">
@@ -593,6 +607,10 @@ onMounted(() => {
 
 .filter-item {
   width: 180px;
+}
+
+.keyword-item {
+  width: 220px;
 }
 
 .admin-table {

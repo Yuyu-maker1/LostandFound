@@ -49,9 +49,10 @@ public class HomeServiceImpl implements HomeService {
     }
 
     @Override
-    public Map<String, Object> loadHome(int pageNum, int pageSize) {
+    public Map<String, Object> loadHome(int pageNum, int pageSize, String keyword) {
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.min(Math.max(pageSize, 1), 50);
+        String safeKeyword = keyword == null ? null : keyword.trim();
 
         List<Map<String, Object>> announcements = Collections.emptyList();
         List<Map<String, Object>> foundList = Collections.emptyList();
@@ -71,10 +72,10 @@ public class HomeServiceImpl implements HomeService {
             }
 
             if (tableExists(TABLE_FOUND)) {
-                total = homeMapper.countFoundItems();
+                total = homeMapper.countFoundItems(safeKeyword);
                 if (total > 0) {
                     int offset = (safePageNum - 1) * safePageSize;
-                    foundList = homeMapper.selectFoundItems(offset, safePageSize);
+                    foundList = homeMapper.selectFoundItems(safeKeyword, offset, safePageSize);
                 }
             } else {
                 // 待建表后接真实数据：found_item 表不存在，返回空数组

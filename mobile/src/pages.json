@@ -28,9 +28,27 @@
       }
     },
     {
+      "path": "pages/publish/found",
+      "style": {
+        "navigationBarTitleText": "拾获物品登记"
+      }
+    },
+    {
+      "path": "pages/publish/lost",
+      "style": {
+        "navigationBarTitleText": "遗失物品登记"
+      }
+    },
+    {
       "path": "pages/mine/mine",
       "style": {
         "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/mine/publish",
+      "style": {
+        "navigationBarTitleText": "我的发布"
       }
     }
   ],

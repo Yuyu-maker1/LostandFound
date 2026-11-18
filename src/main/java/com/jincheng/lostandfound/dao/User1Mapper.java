@@ -30,15 +30,17 @@ public interface User1Mapper {
 
     User1 findTopUser1();
 
-    /** 管理员分页查询（只含 admin / super_admin） */
+    /** 管理员分页查询（只含 admin / super_admin），支持账号/姓名/手机号模糊查询 */
     List<User1> selectAdminPage(@Param("stationId") Integer stationId,
                                 @Param("status") Integer status,
+                                @Param("keyword") String keyword,
                                 @Param("start") int start,
                                 @Param("limit") int limit);
 
     /** 管理员总记录数（与分页查询同条件） */
     int countAdmins(@Param("stationId") Integer stationId,
-                    @Param("status") Integer status);
+                    @Param("status") Integer status,
+                    @Param("keyword") String keyword);
 
     User1 login(@Param("name") String name, @Param("pwd") String pwd);
 
@@ -52,17 +54,19 @@ public interface User1Mapper {
 
     int updateStatus(@Param("name") String name, @Param("status") Integer status);
 
-    /** 旅客 / 乘务员分页查询（联表带出车站名称） */
+    /** 旅客 / 乘务员分页查询（联表带出车站名称），支持账号/姓名/手机号/工号模糊查询 */
     List<User1> selectUserPage(@Param("role") String role,
                                @Param("status") Integer status,
                                @Param("auditStatus") Integer auditStatus,
+                               @Param("keyword") String keyword,
                                @Param("start") int start,
                                @Param("limit") int limit);
 
     /** 旅客 / 乘务员总记录数（与分页查询同条件） */
     int countUsers(@Param("role") String role,
                    @Param("status") Integer status,
-                   @Param("auditStatus") Integer auditStatus);
+                   @Param("auditStatus") Integer auditStatus,
+                   @Param("keyword") String keyword);
 
     /** 乘务员审核：更新审核状态、备注、审核时间与启用状态 */
     int auditAttendant(@Param("name") String name,

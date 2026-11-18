@@ -16,6 +16,10 @@ module.exports = defineConfig({
         target: "http://localhost:8083",
         changeOrigin: true,
       },
+      "/upload": {
+        target: "http://localhost:8083",
+        changeOrigin: true,
+      },
     },
   },
   chainWebpack: (config) => {

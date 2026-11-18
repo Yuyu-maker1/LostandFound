@@ -16,8 +16,9 @@ public interface HomeMapper {
 
     List<Map<String, Object>> selectAnnouncements(@Param("limit") int limit);
 
-    int countFoundItems();
+    int countFoundItems(@Param("keyword") String keyword);
 
-    List<Map<String, Object>> selectFoundItems(@Param("offset") int offset,
+    List<Map<String, Object>> selectFoundItems(@Param("keyword") String keyword,
+                                               @Param("offset") int offset,
                                                @Param("pageSize") int pageSize);
 }

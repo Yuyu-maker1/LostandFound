@@ -20,16 +20,16 @@ public interface User1Service {
     boolean updateStatus(String name, Integer status);
 
     /** 管理员分页：总数 */
-    int countAdmins(Integer stationId, Integer status);
+    int countAdmins(Integer stationId, Integer status, String keyword);
 
     /** 管理员分页：当前页数据 */
-    List<User1> pageAdmins(int start, int limit, Integer stationId, Integer status);
+    List<User1> pageAdmins(int start, int limit, Integer stationId, Integer status, String keyword);
 
     /** 旅客 / 乘务员分页：总数 */
-    int countUsers(String role, Integer status, Integer auditStatus);
+    int countUsers(String role, Integer status, Integer auditStatus, String keyword);
 
     /** 旅客 / 乘务员分页：当前页数据 */
-    List<User1> pageUsers(int start, int limit, String role, Integer status, Integer auditStatus);
+    List<User1> pageUsers(int start, int limit, String role, Integer status, Integer auditStatus, String keyword);
 
     /** 乘务员审核 */
     boolean auditAttendant(String name, Integer auditStatus, String auditRemark, Integer status);

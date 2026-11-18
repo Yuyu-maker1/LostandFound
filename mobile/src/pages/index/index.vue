@@ -1,10 +1,18 @@
 <template>
   <view class="home">
-    <!-- 顶部搜索（首版仅 UI + 占位提示，不做检索逻辑） -->
+    <!-- 顶部搜索：按物品名称、车次、拾获地点模糊查询 -->
     <view class="search-wrap">
-      <view class="search-box" @click="onSearch">
+      <view class="search-box">
         <text class="search-icon">⌕</text>
-        <text class="search-placeholder">搜物品名称、车次或车站</text>
+        <input
+          v-model="keyword"
+          class="search-input"
+          placeholder="搜物品名称、车次或拾获地点"
+          placeholder-class="search-placeholder"
+          confirm-type="search"
+          @confirm="onSearch"
+        />
+        <text v-if="keyword" class="search-clear" @click="onClearSearch">×</text>
       </view>
     </view>
 
@@ -62,14 +70,21 @@
       <view v-else class="found-list">
         <view v-for="item in foundList" :key="item.foundId" class="found-card">
           <view class="found-left">
-            <view class="thumb">{{ (item.title || '物').slice(0, 1) }}</view>
+            <image
+              v-if="item.itemImage"
+              :src="imageUrl(item.itemImage)"
+              class="thumb-img"
+              mode="aspectFill"
+            />
+            <view v-else class="thumb">{{ (item.title || '物').slice(0, 1) }}</view>
           </view>
           <view class="found-body">
             <view class="found-top">
               <text class="found-title">{{ item.title || '未命名物品' }}</text>
               <text class="status-tag" :class="'status-' + item.status">{{ statusText(item.status) }}</text>
             </view>
-            <text class="found-meta">车站：{{ item.station || '待补充' }}</text>
+            <text class="found-meta">车次：{{ item.trainNo || '待补充' }}</text>
+            <text class="found-meta">拾获地点：{{ item.foundLocation || '待补充' }}</text>
             <text class="found-meta">时间：{{ formatTime(item.foundTime) }}</text>
           </view>
         </view>
@@ -87,7 +102,7 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import { get } from '../../utils/request'
+import { get, BASE_URL } from '../../utils/request'
 
 const announcements = ref([])
 const categories = ref([])
@@ -97,6 +112,8 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const loading = ref(false)
 const loadError = ref(false)
+// 模糊查询关键字：物品名称 / 车次 / 拾获地点
+const keyword = ref('')
 
 function toast(title) {
   uni.showToast({ title, icon: 'none' })
@@ -113,6 +130,11 @@ function formatTime(value) {
   return String(value).replace('T', ' ').slice(0, 16)
 }
 
+function imageUrl(path) {
+  if (!path) return ''
+  return path.startsWith('http') ? path : BASE_URL + path
+}
+
 async function load(reset = false, fromPullDown = false) {
   if (loading.value) {
     if (fromPullDown) uni.stopPullDownRefresh()
@@ -125,7 +147,8 @@ async function load(reset = false, fromPullDown = false) {
   try {
     const res = await get('/app/home', {
       pageNum: targetPage,
-      pageSize: pageSize.value
+      pageSize: pageSize.value,
+      keyword: keyword.value.trim()
     })
     const data = res.data1 || {}
     announcements.value = data.announcements || []
@@ -153,7 +176,16 @@ function loadMore() {
 }
 
 function onSearch() {
-  toast('检索功能开发中')
+  // 关键字查询：清空已加载列表并从第一页重新查询
+  foundList.value = []
+  total.value = 0
+  pageNum.value = 1
+  load(true)
+}
+
+function onClearSearch() {
+  keyword.value = ''
+  onSearch()
 }
 
 function onCategory(item) {
@@ -197,6 +229,19 @@ onReachBottom(() => {
   font-size: 34rpx;
   color: #64748b;
   margin-right: 12rpx;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #1f2937;
+}
+
+.search-clear {
+  padding: 0 6rpx;
+  font-size: 32rpx;
+  color: #94a3b8;
 }
 
 .search-placeholder {
@@ -370,6 +415,13 @@ onReachBottom(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.thumb-img {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 18rpx;
+  background: #f1f5f9;
 }
 
 .found-body {

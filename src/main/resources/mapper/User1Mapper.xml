@@ -294,6 +294,12 @@
     <if test="status != null">
       and u.status = #{status,jdbcType=INTEGER}
     </if>
+    <!-- 模糊查询：用 #{} 预编译传参，like concat 拼接通配符，避免 SQL 注入 -->
+    <if test="keyword != null and keyword != ''">
+      and (u.name like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or u.real_name like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or u.phone like concat('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
   </sql>
   <!-- 管理员分页查询：limit #{start},#{limit}，start 由 (page-1)*limit 计算得出 -->
   <select id="selectAdminPage" resultMap="BaseResultMap">
@@ -320,6 +326,13 @@
     </if>
     <if test="auditStatus != null">
       and u.audit_status = #{auditStatus,jdbcType=INTEGER}
+    </if>
+    <!-- 模糊查询：账号、姓名、手机号、员工工号 -->
+    <if test="keyword != null and keyword != ''">
+      and (u.name like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or u.real_name like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or u.phone like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or u.staff_no like concat('%', #{keyword,jdbcType=VARCHAR}, '%'))
     </if>
   </sql>
   <!-- 用户分页查询 -->

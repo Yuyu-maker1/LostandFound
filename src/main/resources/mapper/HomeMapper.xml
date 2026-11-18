@@ -20,24 +20,36 @@
      limit #{limit,jdbcType=INTEGER}
   </select>
 
+  <!-- 首页招领查询条件：只展示审核通过且未结束的记录；关键字模糊查询物品名称/车次/拾获地点 -->
+  <sql id="Found_Home_Where">
+    where f.audit_status = 1
+      and f.status in (0, 1)
+    <if test="keyword != null and keyword != ''">
+      and (f.title like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or f.train_no like concat('%', #{keyword,jdbcType=VARCHAR}, '%')
+        or f.found_location like concat('%', #{keyword,jdbcType=VARCHAR}, '%'))
+    </if>
+  </sql>
+
   <select id="countFoundItems" resultType="int">
     select count(*)
-      from found_item
-     where audit_status = 1
-       and status in (0, 1)
+      from found_item f
+    <include refid="Found_Home_Where" />
   </select>
 
   <select id="selectFoundItems" resultType="java.util.LinkedHashMap">
-    select found_id      as foundId,
-           title         as title,
-           found_time    as foundTime,
-           found_location as station,
-           status        as status,
-           item_image    as itemImage
-      from found_item
-     where audit_status = 1
-       and status in (0, 1)
-     order by create_time desc
+    select f.found_id       as foundId,
+           f.title          as title,
+           f.train_no       as trainNo,
+           c.category_name  as categoryName,
+           f.found_time     as foundTime,
+           f.found_location as foundLocation,
+           f.status         as status,
+           f.item_image     as itemImage
+      from found_item f
+      left join category c on c.category_id = f.category_id
+    <include refid="Found_Home_Where" />
+     order by f.create_time desc
      limit #{offset,jdbcType=INTEGER}, #{pageSize,jdbcType=INTEGER}
   </select>
 

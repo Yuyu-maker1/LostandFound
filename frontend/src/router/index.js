@@ -6,6 +6,8 @@ import Welcome from "@/views/Welcome.vue";
 import UserInfo from "@/views/UserInfo.vue";
 import AdminManage from "@/views/AdminManage.vue";
 import UserManage from "@/views/UserManage.vue";
+import FoundAudit from "@/views/FoundAudit.vue";
+import LostAudit from "@/views/LostAudit.vue";
 
 const routes = [
   {
@@ -65,6 +67,20 @@ const routes = [
         name: "users",
         component: UserManage,
         meta: { title: "用户管理", requiresSuper: true },
+      },
+      {
+        // 招领信息审核：admin / super_admin 均可访问
+        path: "/audit/found",
+        name: "foundAudit",
+        component: FoundAudit,
+        meta: { title: "招领信息审核" },
+      },
+      {
+        // 寻物启事审核：admin / super_admin 均可访问
+        path: "/audit/lost",
+        name: "lostAudit",
+        component: LostAudit,
+        meta: { title: "寻物启事审核" },
       },
     ],
   },
